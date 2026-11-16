@@ -1,0 +1,57 @@
+name: Publish Eduardito01 game
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify memory media
+        shell: bash
+        run: |
+          set -euo pipefail
+          for number in $(seq -w 1 11); do
+            test -s "family/photos/${number}.jpg" || { echo "::error::Missing family/photos/${number}.jpg"; exit 1; }
+          done
+          for number in 01 02 03; do
+            test -s "family/videos/video_${number}.mp4" || { echo "::error::Missing family/videos/video_${number}.mp4"; exit 1; }
+          done
+          test -s index.html
+          echo "All 11 family photos and 3 videos are present."
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+          cp -r family _site/family
+          touch _site/.nojekyll
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy site
+        id: deployment
+        uses: actions/deploy-pages@v4
